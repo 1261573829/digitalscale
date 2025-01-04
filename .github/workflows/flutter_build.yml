@@ -16,6 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Install automake and libtool
+        run: brew install automake libtool
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
