@@ -93,4 +93,5 @@ flutter:
 
   # 添加 macOS 支持
 platforms:
+  macos:
   windows:
