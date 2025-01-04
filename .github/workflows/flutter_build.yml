@@ -45,5 +45,10 @@ jobs:
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
 
+      - name: Set CMake policy to suppress CMP0153 warning
+        run: |
+          echo "Setting CMake policy CMP0153 to OLD to suppress warning"
+          echo "cmake_policy(SET CMP0153 OLD)" >> CMakeLists.txt
+
       - name: Build Windows app
         run: flutter build windows --release  # 构建 Windows 应用
