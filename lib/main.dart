@@ -59,6 +59,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
   DateTime? _lastSpeakTime;
   Timer? _speakTimer;
   double? _pendingWeight;
+  bool _isSpeakEnabled = true;
 
   @override
   void initState() {
@@ -75,31 +76,28 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     await flutterTts.setPitch(1.0); // 设置音调(0.5-2.0)
   }
 
-  // 播报重量的方法
+  // 修改播报重量的方法
   Future<void> _speakWeight(double weight) async {
+    // 如果语音播报被禁用，直接返回
+    if (!_isSpeakEnabled) {
+      return;
+    }
+
     // 检查是否需要播报
     if (!_shouldSpeak(weight)) {
       return;
     }
 
-    // 根据不同单位构建播报文本
-    String text;
-    switch (_currentUnit) {
-      case 'CT':
-        text = "${weight.toStringAsFixed(3)}克拉";
-        break;
-      case 'TL':
-        text = "${weight.toStringAsFixed(3)}钱";
-        break;
-      case 'MO':
-        text = "${weight.toStringAsFixed(3)}毫米";
-        break;
-      case 'OT':
-        text = "${weight.toStringAsFixed(3)}盎司";
-        break;
-      default:
-        text = "${weight.toStringAsFixed(3)}克";
+    // 当重量为0时播放提示语
+    if (weight == 0) {
+      await flutterTts.speak("请把你要称重的物品放入指定称重区域");
+      _lastSpokenWeight = weight;
+      _lastSpeakTime = DateTime.now();
+      return;
     }
+
+    // 构建播报文本（固定使用克作为单位）
+    String text = "${weight.toStringAsFixed(3)}克";
 
     // 执行语音播报
     await flutterTts.speak(text);
@@ -219,10 +217,17 @@ class _SerialPortExampleState extends State<SerialPortExample> {
       );
 
       _startWeightTimer();
+      setState(() {
+        weightDisplay = '连接成功';
+      });
       _showMessage('串口已连接');
+      flutterTts.speak('连接成功');
     } catch (e) {
       print('连接错误: $e');
       _showMessage('连接失败: ${e.toString()}');
+      setState(() {
+        weightDisplay = '连接失败';
+      });
       port?.close();
       port = null;
     }
@@ -235,9 +240,10 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     port = null;
     _buffer = '';
     setState(() {
-      weightDisplay = '';
+      weightDisplay = '未连接';
     });
     _showMessage('串口已断开');
+    flutterTts.speak('连接已断开');
   }
 
   void _sendCommand(String command) {
@@ -249,11 +255,16 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     String formattedCommand;
     switch (command) {
       case 'T':
-        formattedCommand = 'T(SP)54H20H\r\n';
+        formattedCommand = 'T \r\n'; // 去皮命令
         break;
-      case 'UNIT':
-        // 发送单位切换命令
-        formattedCommand = 'U\r\n';
+      case 'Z':
+        formattedCommand = 'Z \r\n'; // 归零命令
+        break;
+      case 'O8':
+        formattedCommand = 'O8\r\n'; // 单次输出数据命令
+        break;
+      case 'C':
+        formattedCommand = 'C\r\n'; // 去皮范围命令
         break;
       default:
         formattedCommand = command + '\r\n';
@@ -277,26 +288,37 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     );
   }
 
-  // 处理重量数据
+  // 修改数据处理方法
   void _processWeightData(String data) {
     try {
-      // 匹配重量数值（带正号的数字）
-      final pattern = RegExp(r'[+]\d+\.\d+');
+      // 匹配重量数值（包括正负号的数字）
+      final pattern = RegExp(r'[+-]\d+\.\d+');
       final match = pattern.firstMatch(data);
       if (match != null) {
         String numberStr = match.group(0)!;
         double weight = double.parse(numberStr);
 
         setState(() {
-          // 更新显示，保持3位小数精度
-          weightDisplay = "${weight.toStringAsFixed(3)} $_currentUnit";
-          // 触发语音播报
+          // 更新显示和触发语音播报
+          weightDisplay = "${weight.toStringAsFixed(3)} G";
           _speakWeight(weight);
         });
       }
     } catch (e) {
       print('处理重量数据错误: $e');
     }
+  }
+
+  // 添加切换语音开关的方法
+  void _toggleSpeak() {
+    setState(() {
+      _isSpeakEnabled = !_isSpeakEnabled;
+      if (_isSpeakEnabled) {
+        flutterTts.speak('语音播报已开启');
+      } else {
+        flutterTts.speak('语音播报已关闭');
+      }
+    });
   }
 
   @override
@@ -318,225 +340,218 @@ class _SerialPortExampleState extends State<SerialPortExample> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.blue[700],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 重量显示区域
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '重量显示',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {
-                          if (weightDisplay.isNotEmpty) {
-                            Clipboard.setData(
-                                    ClipboardData(text: weightDisplay))
-                                .then((_) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('已复制: $weightDisplay'),
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                            });
-                          }
-                        },
-                        icon: Icon(Icons.copy, size: 18),
-                        label: Text('复制'),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SelectableText(
-                        weightDisplay.isEmpty ? '0.00 G' : weightDisplay,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontFamily: 'Monospace',
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 32),
-
-              // 操作按钮区域
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '操作控制',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[700],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _sendCommand('T'),
-                          icon: Icon(Icons.restart_alt, size: 20),
-                          label: Text('归零'),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.blue[700]!),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _sendCommand('Z'),
-                          icon: Icon(Icons.remove_circle_outline, size: 20),
-                          label: Text('去皮'),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.blue[700]!),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _sendCommand('C'),
-                          icon: Icon(Icons.settings_outlined, size: 20),
-                          label: Text('去皮范围'),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.blue[700]!),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _sendCommand('UNIT'),
-                          icon: Icon(Icons.swap_horiz, size: 20),
-                          label: Text('切换单位'),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.blue[700]!),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              SizedBox(height: 32),
-
-              // 连接设置区域
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '设备连接',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[700],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedPort,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.blue[700]!),
-                      ),
-                      labelText: '选择SHINKO天平秤',
-                      hintText: '请选择SHINKO天平秤串口',
-                      prefixIcon: Icon(Icons.scale),
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    ),
-                    items: availablePorts.map((port) {
-                      return DropdownMenuItem(
-                        value: port,
-                        child: Text('SHINKO天平秤 ($port)'),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedPort = value;
-                      });
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: port == null ? _connectToPort : null,
-                          icon: Icon(Icons.link, size: 20),
-                          label: Text('连接'),
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: Colors.blue[700],
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: port != null ? _disconnectPort : null,
-                          icon: Icon(Icons.link_off, size: 20),
-                          label: Text('断开'),
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.red),
-                            foregroundColor: Colors.red,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+        actions: [
+          // 添加语音开关按钮
+          IconButton(
+            icon: Icon(_isSpeakEnabled ? Icons.volume_up : Icons.volume_off),
+            onPressed: _toggleSpeak,
+            tooltip: _isSpeakEnabled ? '关闭语音' : '开启语音',
           ),
-        ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // 重量显示区域
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(
+                bottom: BorderSide(color: Colors.grey[200]!),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        if (weightDisplay.isNotEmpty) {
+                          Clipboard.setData(ClipboardData(text: weightDisplay))
+                              .then((_) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('已复制: $weightDisplay'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          });
+                        }
+                      },
+                      icon: Icon(Icons.copy, size: 18),
+                      label: Text('复制'),
+                    ),
+                    SizedBox(width: 24),
+                  ],
+                ),
+                Text(
+                  weightDisplay.isEmpty ? '未连接' : weightDisplay,
+                  style: TextStyle(
+                    fontSize: 72,
+                    fontFamily: 'Monospace',
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          // 其他控制部分使用 Padding 包裹
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 操作按钮区域
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '操作控制',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _sendCommand('T'),
+                                icon: Icon(Icons.restart_alt, size: 20),
+                                label: Text('归零'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: Colors.blue[700]!),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _sendCommand('Z'),
+                                icon:
+                                    Icon(Icons.remove_circle_outline, size: 20),
+                                label: Text('去皮'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: Colors.blue[700]!),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _sendCommand('C'),
+                                icon: Icon(Icons.settings_outlined, size: 20),
+                                label: Text('去皮范围'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: Colors.blue[700]!),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 32),
+                    // 连接设置区域
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '设备连接',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          value: selectedPort,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.blue[700]!),
+                            ),
+                            labelText: '选择SHINKO天平秤',
+                            hintText: '请选择SHINKO天平秤串口',
+                            prefixIcon: Icon(Icons.scale),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 16),
+                          ),
+                          items: availablePorts.map((port) {
+                            return DropdownMenuItem(
+                              value: port,
+                              child: Text('SHINKO天平秤 ($port)'),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedPort = value;
+                            });
+                          },
+                        ),
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: port == null ? _connectToPort : null,
+                                icon: Icon(Icons.link, size: 20),
+                                label: Text('连接'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  backgroundColor: Colors.blue[700],
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed:
+                                    port != null ? _disconnectPort : null,
+                                icon: Icon(Icons.link_off, size: 20),
+                                label: Text('断开'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: Colors.red),
+                                  foregroundColor: Colors.red,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
