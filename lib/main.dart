@@ -436,9 +436,9 @@ class _SerialPortExampleState extends State<SerialPortExample> {
         print('- 产品名: $productName');
 
         // 检查是否为 FT232R 设备
-        return (description?.toLowerCase().contains('ft232r') ?? false) ||
-            (manufacturer?.toLowerCase().contains('ftdi') ?? false) ||
-            (productName?.toLowerCase().contains('ft232r') ?? false);
+        return (description?.toLowerCase().contains('usb') ?? false) ||
+            (manufacturer?.toLowerCase().contains('usb') ?? false) ||
+            (productName?.toLowerCase().contains('usb') ?? false);
       } catch (e) {
         print('检查端口 $port 时出错: $e');
         return false;
