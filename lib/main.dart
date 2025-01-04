@@ -358,7 +358,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
         text = "${weight.toStringAsFixed(3)}克拉";
         break;
       case 'MO':
-        text = "${weight.toStringAsFixed(3)}毫米";
+        text = "${weight.toStringAsFixed(3)}毛";
         break;
       case 'OT':
         text = "${weight.toStringAsFixed(3)}盎司";
@@ -441,6 +441,10 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                                 duration: Duration(seconds: 1),
                               ),
                             );
+                            // 添加复制成功的语音播报
+                            if (_isSpeakEnabled) {
+                              flutterTts.speak('复制成功');
+                            }
                           });
                         }
                       },
