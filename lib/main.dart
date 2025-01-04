@@ -264,18 +264,23 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     }
 
     String formattedCommand;
+    String speakText = '';
+
     switch (command) {
       case 'T':
         formattedCommand = 'T \r\n'; // 去皮命令
+        speakText = '归零'; // 修正：T命令实际是归零
         break;
       case 'Z':
         formattedCommand = 'Z \r\n'; // 归零命令
+        speakText = '去皮'; // 修正：Z命令实际是去皮
         break;
       case 'O8':
         formattedCommand = 'O8\r\n'; // 单次输出数据命令
         break;
-      case 'C':
-        formattedCommand = 'C\r\n'; // 去皮范围命令
+      case 'TT':
+        formattedCommand = 'TT\r\n'; // 去皮范围命令
+        speakText = '设置去皮范围';
         break;
       default:
         formattedCommand = command + '\r\n';
@@ -285,6 +290,11 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     final bytes = formattedCommand.codeUnits;
     port!.write(Uint8List.fromList(bytes));
     print('发送命令: $formattedCommand');
+
+    // 执行语音播报
+    if (speakText.isNotEmpty && _isSpeakEnabled) {
+      flutterTts.speak(speakText);
+    }
   }
 
   void _handleWeightResponse(String response) {
@@ -546,7 +556,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                               child: OutlinedButton.icon(
                                 onPressed: () => _sendCommand('T'),
                                 icon: Icon(Icons.restart_alt, size: 20),
-                                label: Text('归零'),
+                                label: Text('去皮'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                   side: BorderSide(color: Colors.blue[700]!),
@@ -559,7 +569,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                                 onPressed: () => _sendCommand('Z'),
                                 icon:
                                     Icon(Icons.remove_circle_outline, size: 20),
-                                label: Text('去皮'),
+                                label: Text('零点'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                   side: BorderSide(color: Colors.blue[700]!),
@@ -569,7 +579,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                             SizedBox(width: 12),
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => _sendCommand('C'),
+                                onPressed: () => _sendCommand('TT'),
                                 icon: Icon(Icons.settings_outlined, size: 20),
                                 label: Text('去皮范围'),
                                 style: OutlinedButton.styleFrom(
