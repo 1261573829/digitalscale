@@ -9,7 +9,7 @@ on:
       - main   # 对主分支的 PR 进行构建
 
 jobs:
- #uild-macos:
+  uild-macos:
  # runs-on: macos-latest  # 使用 macOS 环境
 
  # steps:
