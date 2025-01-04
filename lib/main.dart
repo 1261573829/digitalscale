@@ -135,12 +135,12 @@ class _SerialPortExampleState extends State<SerialPortExample> {
 
   void _getAvailablePorts() {
     setState(() {
-      _availablePorts = SerialPort.availablePorts;
+      _availablePorts = _getUsbPorts();
       if (_availablePorts.isNotEmpty) {
         _selectedPort = _availablePorts.first;
       }
     });
-    print('Available ports: $_availablePorts');
+    print('可用的USB串口设备: $_availablePorts');
   }
 
   void _startWeightTimer() {
@@ -385,15 +385,55 @@ class _SerialPortExampleState extends State<SerialPortExample> {
   }
 
   // 添加刷新设备列表的方法
-  void _refreshDevices() async {
-    final ports = await SerialPort.availablePorts;
+  void _refreshDevices() {
     setState(() {
-      _availablePorts = ports;
+      _availablePorts = _getUsbPorts();
       // 如果当前选中的端口不在新的列表中，清除选择
-      if (!ports.contains(_selectedPort)) {
+      if (!_availablePorts.contains(_selectedPort)) {
         _selectedPort = null;
       }
     });
+
+    // 添加刷新提示
+    if (_availablePorts.isEmpty) {
+      _showMessage('未检测到USB串口设备');
+      if (_isSpeakEnabled) {
+        flutterTts.speak('未检测到USB串口设备');
+      }
+    } else {
+      _showMessage('已刷新USB设备列表');
+    }
+  }
+
+  List<String> _getUsbPorts() {
+    // 获取所有可用端口
+    final allPorts = SerialPort.availablePorts;
+    // 过滤出 FT232R 设备
+    return allPorts.where((port) {
+      try {
+        final serialPort = SerialPort(port);
+        final description = serialPort.description;
+        final manufacturer = serialPort.manufacturer;
+        final productName = serialPort.productName;
+
+        // 关闭端口
+        serialPort.close();
+
+        // 打印设备信息用于调试
+        print('检查端口 $port:');
+        print('- 描述: $description');
+        print('- 制造商: $manufacturer');
+        print('- 产品名: $productName');
+
+        // 检查是否为 FT232R 设备
+        return (description?.toLowerCase().contains('ft232r') ?? false) ||
+            (manufacturer?.toLowerCase().contains('ftdi') ?? false) ||
+            (productName?.toLowerCase().contains('ft232r') ?? false);
+      } catch (e) {
+        print('检查端口 $port 时出错: $e');
+        return false;
+      }
+    }).toList();
   }
 
   @override
