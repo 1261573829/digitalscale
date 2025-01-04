@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,11 +54,72 @@ class _SerialPortExampleState extends State<SerialPortExample> {
   final TextEditingController _sendController = TextEditingController();
   String _buffer = '';
   String _currentUnit = 'G'; // 添加单位跟踪变量
+  FlutterTts flutterTts = FlutterTts();
+  double? _lastSpokenWeight;
+  DateTime? _lastSpeakTime;
+  Timer? _speakTimer;
+  double? _pendingWeight;
 
   @override
   void initState() {
     super.initState();
     _getAvailablePorts();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    await flutterTts.setLanguage("zh-CN"); // 设置中文
+    await flutterTts.setSpeechRate(0.5); // 设置语速
+    await flutterTts.setVolume(1.0); // 设置音量
+    await flutterTts.setPitch(1.0); // 设置音高
+  }
+
+  Future<void> _speakWeight(double weight) async {
+    if (!_shouldSpeak(weight)) {
+      return;
+    }
+
+    String text;
+    switch (_currentUnit) {
+      case 'CT':
+        text = "${weight.toStringAsFixed(2)}克拉";
+        break;
+      case 'TL':
+        text = "${weight.toStringAsFixed(2)}钱";
+        break;
+      case 'MO':
+        text = "${weight.toStringAsFixed(2)}毫米";
+        break;
+      case 'OT':
+        text = "${weight.toStringAsFixed(2)}盎司";
+        break;
+      default:
+        text = "${weight.toStringAsFixed(2)}克";
+    }
+
+    await flutterTts.speak(text);
+
+    _lastSpokenWeight = weight;
+    _lastSpeakTime = DateTime.now();
+  }
+
+  bool _shouldSpeak(double currentWeight) {
+    if (_lastSpokenWeight == null || _lastSpeakTime == null) {
+      return true;
+    }
+
+    double weightDiff = (currentWeight - _lastSpokenWeight!).abs();
+
+    int timeDiff = DateTime.now().difference(_lastSpeakTime!).inSeconds;
+
+    return weightDiff >= 0.5 || timeDiff >= 2;
+  }
+
+  void _updateWeight(double newWeight) {
+    setState(() {
+      weightDisplay = newWeight.toStringAsFixed(1) + '克';
+      _speakWeight(newWeight);
+    });
   }
 
   void _getAvailablePorts() {
@@ -107,14 +169,11 @@ class _SerialPortExampleState extends State<SerialPortExample> {
       reader!.stream.listen(
         (data) {
           final response = String.fromCharCodes(data);
-          print('原始数据: $response'); // 打印原始数据
           _buffer += response;
 
           // 处理命令响应
           if (_buffer.contains('A00')) {
-            print('收到命令响应: A00');
             _buffer = _buffer.replaceAll('A00', '');
-            print('清除A00后的缓冲区: $_buffer');
           }
 
           // 处理重量数据
@@ -123,61 +182,26 @@ class _SerialPortExampleState extends State<SerialPortExample> {
               _buffer.contains('TL S') ||
               _buffer.contains('MO') ||
               _buffer.contains('OT S')) {
-            try {
-              print('当前缓冲区内容: $_buffer');
-              // 修改正则表达式以匹配所有单位格式，包括 OT
-              final pattern = RegExp(r'\+\d+\.\d+(?:G|CT|TL|MO|OT)(?:\s+S)?');
-              final matches = pattern.allMatches(_buffer);
-
-              if (matches.isNotEmpty) {
-                final lastMatch = matches.last;
-                var completeData = lastMatch.group(0)!;
-                print('匹配到的完整数据: $completeData');
-
-                // 检测单位
-                if (completeData.contains('CT')) {
-                  _currentUnit = 'CT';
-                } else if (completeData.contains('TL')) {
-                  _currentUnit = 'TL';
-                } else if (completeData.contains('MO')) {
-                  _currentUnit = 'MO';
-                } else if (completeData.contains('OT')) {
-                  _currentUnit = 'OT';
-                } else {
-                  _currentUnit = 'G';
-                }
-
-                // 处理前导零
-                if (completeData.startsWith('+')) {
-                  var numberPart = completeData.split(_currentUnit)[0];
-                  print('提取的数字部分: $numberPart');
-                  var numValue = double.tryParse(numberPart.substring(1));
-                  if (numValue != null) {
-                    numberPart = '+${numValue.toStringAsFixed(3)}';
-                    completeData = '$numberPart $_currentUnit';
-                    print('处理后的数据: $completeData');
-
-                    setState(() {
-                      weightDisplay = completeData;
-                    });
-
-                    _buffer = _buffer.substring(lastMatch.end);
-                    print('处理后的缓冲区内容: $_buffer');
-                  }
-                }
-              }
-            } catch (e) {
-              print('数据处理错误: $e');
-              print('错误发生时的缓冲区内容: $_buffer');
+            // 更新单位
+            if (_buffer.contains('CT S')) {
+              _currentUnit = 'CT';
+            } else if (_buffer.contains('TL S')) {
+              _currentUnit = 'TL';
+            } else if (_buffer.contains('MO')) {
+              _currentUnit = 'MO';
+            } else if (_buffer.contains('OT S')) {
+              _currentUnit = 'OT';
+            } else {
+              _currentUnit = 'G';
             }
+
+            _processWeightData(_buffer);
+            _buffer = ''; // 清空缓冲区
           }
         },
         onError: (error) {
           print('串口读取错误: $error');
           _showMessage('数据读取错误');
-        },
-        onDone: () {
-          print('串口数据流已关闭');
         },
       );
 
@@ -240,8 +264,27 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     );
   }
 
+  void _processWeightData(String data) {
+    try {
+      final pattern = RegExp(r'[+]\d+\.\d+');
+      final match = pattern.firstMatch(data);
+      if (match != null) {
+        String numberStr = match.group(0)!;
+        double weight = double.parse(numberStr);
+
+        setState(() {
+          weightDisplay = "${weight.toStringAsFixed(2)} $_currentUnit";
+          _speakWeight(weight);
+        });
+      }
+    } catch (e) {
+      print('处理重量数据错误: $e');
+    }
+  }
+
   @override
   void dispose() {
+    _speakTimer?.cancel();
     _stopWeightTimer();
     reader?.close();
     port?.close();
