@@ -44,11 +44,15 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
+      - name: Set up CMake
+        uses: cypress-io/setup-cmake@v2
+        with:
+          cmake-version: '3.21'  # 根据需求设置合适的版本
 
-      - name: Set CMake policy to suppress CMP0153 warning
-        run: |
-          echo "Setting CMake policy CMP0153 to OLD to suppress warning"
-          echo "cmake_policy(SET CMP0153 OLD)" >> CMakeLists.txt
+      - name: Set up Visual Studio
+        uses: actions/setup-msbuild@v1
+        with:
+          vs-version: 'latest'  # 或指定合适的版本
 
       - name: Build Windows app
         run: flutter build windows --release  # 构建 Windows 应用
