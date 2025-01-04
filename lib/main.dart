@@ -45,8 +45,8 @@ class SerialPortExample extends StatefulWidget {
 }
 
 class _SerialPortExampleState extends State<SerialPortExample> {
-  List<String> availablePorts = [];
-  String? selectedPort;
+  List<String> _availablePorts = [];
+  String? _selectedPort;
   SerialPort? port;
   SerialPortReader? reader;
   String weightDisplay = '';
@@ -135,12 +135,12 @@ class _SerialPortExampleState extends State<SerialPortExample> {
 
   void _getAvailablePorts() {
     setState(() {
-      availablePorts = SerialPort.availablePorts;
-      if (availablePorts.isNotEmpty) {
-        selectedPort = availablePorts.first;
+      _availablePorts = SerialPort.availablePorts;
+      if (_availablePorts.isNotEmpty) {
+        _selectedPort = _availablePorts.first;
       }
     });
-    print('Available ports: $availablePorts');
+    print('Available ports: $_availablePorts');
   }
 
   void _startWeightTimer() {
@@ -156,13 +156,13 @@ class _SerialPortExampleState extends State<SerialPortExample> {
   }
 
   void _connectToPort() {
-    if (selectedPort == null) {
+    if (_selectedPort == null) {
       _showMessage('请选择一个串口设备');
       return;
     }
 
     try {
-      port = SerialPort(selectedPort!);
+      port = SerialPort(_selectedPort!);
 
       if (!port!.openReadWrite()) {
         _showMessage('无法打开串口');
@@ -321,7 +321,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
           } else if (_buffer.contains('OT S')) {
             unit = 'OT';
           }
-          
+
           weightDisplay = "${weight.toStringAsFixed(3)} $unit";
           _speakWeightWithUnit(weight, unit);
         });
@@ -380,6 +380,18 @@ class _SerialPortExampleState extends State<SerialPortExample> {
         flutterTts.speak('语音播报已开启');
       } else {
         flutterTts.speak('语音播报已关闭');
+      }
+    });
+  }
+
+  // 添加刷新设备列表的方法
+  void _refreshDevices() async {
+    final ports = await SerialPort.availablePorts;
+    setState(() {
+      _availablePorts = ports;
+      // 如果当前选中的端口不在新的列表中，清除选择
+      if (!ports.contains(_selectedPort)) {
+        _selectedPort = null;
       }
     });
   }
@@ -544,38 +556,54 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                           ),
                         ),
                         SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: selectedPort,
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedPort,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide:
+                                        BorderSide(color: Colors.grey[300]!),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide:
+                                        BorderSide(color: Colors.grey[300]!),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide:
+                                        BorderSide(color: Colors.blue[700]!),
+                                  ),
+                                  labelText: '选择SHINKO天平秤',
+                                  hintText: '请选择SHINKO天平秤串口',
+                                  prefixIcon: Icon(Icons.scale),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 16),
+                                ),
+                                items: _availablePorts.map((port) {
+                                  return DropdownMenuItem(
+                                    value: port,
+                                    child: Text('SHINKO天平秤 ($port)'),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedPort = value;
+                                  });
+                                },
+                              ),
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            IconButton(
+                              icon: const Icon(Icons.refresh),
+                              onPressed: () {
+                                // 调用刷新设备列表的方法
+                                _refreshDevices();
+                              },
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.blue[700]!),
-                            ),
-                            labelText: '选择SHINKO天平秤',
-                            hintText: '请选择SHINKO天平秤串口',
-                            prefixIcon: Icon(Icons.scale),
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 16),
-                          ),
-                          items: availablePorts.map((port) {
-                            return DropdownMenuItem(
-                              value: port,
-                              child: Text('SHINKO天平秤 ($port)'),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedPort = value;
-                            });
-                          },
+                          ],
                         ),
                         SizedBox(height: 16),
                         Row(
