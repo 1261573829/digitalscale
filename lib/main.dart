@@ -67,51 +67,64 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     _initTts();
   }
 
+  // 初始化TTS引擎
   Future<void> _initTts() async {
-    await flutterTts.setLanguage("zh-CN"); // 设置中文
-    await flutterTts.setSpeechRate(0.5); // 设置语速
-    await flutterTts.setVolume(1.0); // 设置音量
-    await flutterTts.setPitch(1.0); // 设置音高
+    await flutterTts.setLanguage("zh-CN"); // 设置中文语音
+    await flutterTts.setSpeechRate(0.5); // 设置语速(0.1-2.0)
+    await flutterTts.setVolume(1.0); // 设置音量(0.0-1.0)
+    await flutterTts.setPitch(1.0); // 设置音调(0.5-2.0)
   }
 
+  // 播报重量的方法
   Future<void> _speakWeight(double weight) async {
+    // 检查是否需要播报
     if (!_shouldSpeak(weight)) {
       return;
     }
 
+    // 根据不同单位构建播报文本
     String text;
     switch (_currentUnit) {
       case 'CT':
-        text = "${weight.toStringAsFixed(2)}克拉";
+        text = "${weight.toStringAsFixed(3)}克拉";
         break;
       case 'TL':
-        text = "${weight.toStringAsFixed(2)}钱";
+        text = "${weight.toStringAsFixed(3)}钱";
         break;
       case 'MO':
-        text = "${weight.toStringAsFixed(2)}毫米";
+        text = "${weight.toStringAsFixed(3)}毫米";
         break;
       case 'OT':
-        text = "${weight.toStringAsFixed(2)}盎司";
+        text = "${weight.toStringAsFixed(3)}盎司";
         break;
       default:
-        text = "${weight.toStringAsFixed(2)}克";
+        text = "${weight.toStringAsFixed(3)}克";
     }
 
+    // 执行语音播报
     await flutterTts.speak(text);
 
+    // 更新最后播报的记录
     _lastSpokenWeight = weight;
     _lastSpeakTime = DateTime.now();
   }
 
+  // 判断是否需要播报重量
   bool _shouldSpeak(double currentWeight) {
+    // 首次播报
     if (_lastSpokenWeight == null || _lastSpeakTime == null) {
       return true;
     }
 
+    // 计算重量变化
     double weightDiff = (currentWeight - _lastSpokenWeight!).abs();
 
+    // 计算时间间隔（秒）
     int timeDiff = DateTime.now().difference(_lastSpeakTime!).inSeconds;
 
+    // 满足以下任一条件时播报：
+    // 1. 重量变化超过0.5
+    // 2. 距离上次播报超过2秒
     return weightDiff >= 0.5 || timeDiff >= 2;
   }
 
@@ -134,7 +147,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
 
   void _startWeightTimer() {
     _timer?.cancel();
-    _timer = Timer.periodic(Duration(milliseconds: 500), (timer) {
+    _timer = Timer.periodic(Duration(seconds: 5), (timer) {
       _sendCommand('O8');
     });
   }
@@ -264,8 +277,10 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     );
   }
 
+  // 处理重量数据
   void _processWeightData(String data) {
     try {
+      // 匹配重量数值（带正号的数字）
       final pattern = RegExp(r'[+]\d+\.\d+');
       final match = pattern.firstMatch(data);
       if (match != null) {
@@ -273,7 +288,9 @@ class _SerialPortExampleState extends State<SerialPortExample> {
         double weight = double.parse(numberStr);
 
         setState(() {
-          weightDisplay = "${weight.toStringAsFixed(2)} $_currentUnit";
+          // 更新显示，保持3位小数精度
+          weightDisplay = "${weight.toStringAsFixed(3)} $_currentUnit";
+          // 触发语音播报
           _speakWeight(weight);
         });
       }
@@ -284,7 +301,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
 
   @override
   void dispose() {
-    _speakTimer?.cancel();
+    _speakTimer?.cancel(); // 清理语音播报定时器
     _stopWeightTimer();
     reader?.close();
     port?.close();
