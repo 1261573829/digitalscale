@@ -180,11 +180,14 @@ class _SerialPortExampleState extends State<SerialPortExample> {
       reader!.stream.listen(
         (data) {
           final response = String.fromCharCodes(data);
+          print('收到原始数据: $response'); // 打印原始数据
           _buffer += response;
 
           // 处理命令响应
           if (_buffer.contains('A00')) {
+            print('收到命令响应: A00');
             _buffer = _buffer.replaceAll('A00', '');
+            print('清除A00后的缓冲区: $_buffer');
           }
 
           // 处理重量数据
@@ -193,20 +196,28 @@ class _SerialPortExampleState extends State<SerialPortExample> {
               _buffer.contains('TL S') ||
               _buffer.contains('MO') ||
               _buffer.contains('OT S')) {
+            print('收到重量数据: $_buffer'); // 打印完整的重量数据
+
             // 更新单位
             if (_buffer.contains('CT S')) {
               _currentUnit = 'CT';
+              print('当前单位: CT');
             } else if (_buffer.contains('TL S')) {
               _currentUnit = 'TL';
+              print('当前单位: TL');
             } else if (_buffer.contains('MO')) {
               _currentUnit = 'MO';
+              print('当前单位: MO');
             } else if (_buffer.contains('OT S')) {
               _currentUnit = 'OT';
+              print('当前单位: OT');
             } else {
               _currentUnit = 'G';
+              print('当前单位: G');
             }
 
             _processWeightData(_buffer);
+            print('处理后的重量显示: $weightDisplay'); // 打印处理后的显示结果
             _buffer = ''; // 清空缓冲区
           }
         },
@@ -298,15 +309,67 @@ class _SerialPortExampleState extends State<SerialPortExample> {
         String numberStr = match.group(0)!;
         double weight = double.parse(numberStr);
 
+        // 根据单位更新显示和播报
         setState(() {
-          // 更新显示和触发语音播报
-          weightDisplay = "${weight.toStringAsFixed(3)} G";
-          _speakWeight(weight);
+          String unit = 'G'; // 默认单位
+          if (_buffer.contains('TL S')) {
+            unit = 'TL';
+          } else if (_buffer.contains('CT S')) {
+            unit = 'CT';
+          } else if (_buffer.contains('MO')) {
+            unit = 'MO';
+          } else if (_buffer.contains('OT S')) {
+            unit = 'OT';
+          }
+          
+          weightDisplay = "${weight.toStringAsFixed(3)} $unit";
+          _speakWeightWithUnit(weight, unit);
         });
       }
     } catch (e) {
       print('处理重量数据错误: $e');
     }
+  }
+
+  // 修改带单位的播报方法
+  Future<void> _speakWeightWithUnit(double weight, String unit) async {
+    if (!_isSpeakEnabled) {
+      return;
+    }
+
+    if (!_shouldSpeak(weight)) {
+      return;
+    }
+
+    if (weight == 0) {
+      await flutterTts.speak("请把你要称重的物品放入指定称重区域");
+      _lastSpokenWeight = weight;
+      _lastSpeakTime = DateTime.now();
+      return;
+    }
+
+    // 根据单位选择播报文本
+    String text;
+    switch (unit) {
+      case 'TL':
+        text = "${weight.toStringAsFixed(3)}钱";
+        break;
+      case 'CT':
+        text = "${weight.toStringAsFixed(3)}克拉";
+        break;
+      case 'MO':
+        text = "${weight.toStringAsFixed(3)}毫米";
+        break;
+      case 'OT':
+        text = "${weight.toStringAsFixed(3)}盎司";
+        break;
+      default:
+        text = "${weight.toStringAsFixed(3)}克";
+    }
+
+    await flutterTts.speak(text);
+    _lastSpokenWeight = weight;
+    _lastSpeakTime = DateTime.now();
   }
 
   // 添加切换语音开关的方法
