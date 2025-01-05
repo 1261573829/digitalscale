@@ -29,24 +29,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Clean build directory
-        run: |
-          if exist build rd /s /q build
-        shell: cmd
-
-      - name: Configure CMake
-        run: |
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="/std:c++20 /await /EHsc"
-        working-directory: windows
-
       - name: Build Windows app
         env:
           CXXFLAGS: "/std:c++20 /await /EHsc"
+          CMAKE_CXX_FLAGS: "/std:c++20 /await /EHsc"
         run: |
           flutter config --enable-windows-desktop
-          flutter build windows --release
+          flutter clean
+          flutter build windows --release --verbose
 
       - name: Archive Windows build
         run: |
