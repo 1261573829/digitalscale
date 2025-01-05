@@ -18,6 +18,11 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Install dependencies with Homebrew
+        run: |
+          brew install automake
+          brew install libtool
+
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
 
