@@ -1,69 +1,23 @@
-name: Build and Release macOS and Windows Apps
+name: Build and Release Windows App
 
 on:
   push:
     branches:
-      - main   # 触发构建的分支
+      - main
   pull_request:
     branches:
-      - main   # 对主分支的 PR 进行构建
-  create:  # 监听标签创建事件
+      - main
+  create:
     types: [created]
 
 jobs:
-  build-macos:
-    runs-on: macos-latest  # 使用 macOS 环境
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # 确保可以获取所有标签
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-
-      - name: Install dependencies with Homebrew
-        run: |
-          brew install automake
-          brew install libtool
-
-      - name: Install dependencies
-        run: flutter pub get  # 安装项目依赖
-
-      - name: Build macOS app
-        run: flutter build macos --release  # 构建 macOS 应用
-
-      - name: Archive macOS build
-        run: |
-          cd build/macos/Build/Products/Release
-          zip -r DigitalScale-macOS.zip DigitalScale.app
-
-      - name: Get tag name
-        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
-        id: get_tag_name
-        run: |
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          echo "Using tag: ${GITHUB_REF#refs/tags/}"
-
-      - name: Publish to GitHub Releases
-        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: build/macos/Build/Products/Release/DigitalScale-macOS.zip
-          tag_name: ${{ env.TAG_NAME }}
-          draft: false
-          prerelease: false
-
   build-windows:
-    runs-on: windows-latest  # 使用 Windows 环境
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # 确保可以获取所有标签
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -73,7 +27,7 @@ jobs:
         uses: microsoft/setup-msbuild@v1.1
 
       - name: Install dependencies
-        run: flutter pub get  # 安装项目依赖
+        run: flutter pub get
 
       - name: Clean build directory
         run: |
@@ -97,7 +51,7 @@ jobs:
       - name: Archive Windows build
         run: |
           cd build/windows/runner/Release
-          7z a DigitalScale-Windows.zip ./*  # 使用 7z 替代 tar 命令，打包所有必要文件
+          7z a DigitalScale-Windows.zip ./*
 
       - name: Get tag name
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
