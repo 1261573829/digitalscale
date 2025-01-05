@@ -44,7 +44,6 @@ jobs:
           flutter config --enable-windows-desktop
           flutter clean
           flutter build windows --release --verbose
-
       - name: Archive Windows build
         run: |
           cd build\windows\x64\runner\Release
