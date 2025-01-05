@@ -68,7 +68,7 @@ jobs:
 
       - name: Install dependencies using choco
         run: |
-          choco install cmake --version=3.21.2
+          choco install cmake --version=3.14
           choco install visualstudio2019-workload-vctools
 
       - name: Build Windows application
