@@ -7,9 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  create:  # 监听标签创建事件
-    types: [created]
-
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -57,31 +54,9 @@ jobs:
             exit 1
           }
 
-      - name: Print environment variables
-        run: |
-          echo "GITHUB_REF_NAME: ${{ github.ref_name }}"
-          echo "GITHUB_REF: ${{ github.ref }}"
-          echo "GITHUB_EVENT_NAME: ${{ github.event_name }}"
-          echo "GITHUB_SHA: ${{ github.sha }}"
-          git tag --points-at ${{ github.sha }}
-
-      - name: Publish to GitHub Releases
-        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
         with:
-          files: build/windows/x64/runner/Release/DigitalScale-Windows.zip
-          name: "Release ${{ github.ref_name }}"
-          tag_name: ${{ github.ref_name }}
-          body: "Windows build for ${{ github.ref_name }}"
-          draft: false
-          prerelease: false
-
-      - name: Print release result (always)
-        if: always()
-        run: |
-          echo "Release step completed."
-          echo "Tag: ${{ github.ref_name }}"
-          echo "Event: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
+          name: windows-build
+          path: build/windows/x64/runner/Release/DigitalScale-Windows.zip
+          retention-days: 90  # 保留90天
