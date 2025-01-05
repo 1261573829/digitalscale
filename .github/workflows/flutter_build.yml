@@ -44,10 +44,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
-      - name: Set up CMake
-        uses: cypress-io/setup-cmake@v2
-        with:
-          cmake-version: '3.21'  # 根据需求设置合适的版本
 
       - name: Set up Visual Studio
         uses: actions/setup-msbuild@v1
