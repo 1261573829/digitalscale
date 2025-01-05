@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main   # 对主分支的 PR 进行构建
+  create:  # 监听标签创建事件
+    types: [created]
 
 jobs:
   build-macos:
@@ -14,6 +16,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 确保可以获取所有标签
+
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
@@ -34,16 +39,26 @@ jobs:
           cd build/macos/Build/Products/Release
           zip -r DigitalScale-macOS.zip DigitalScale.app
 
+      - name: Get tag name
+        id: get_tag_name
+        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
       - name: Publish to GitHub Releases
+        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: build/macos/Build/Products/Release/DigitalScale-macOS.zip
+          tag_name: ${{ env.TAG_NAME }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
     runs-on: windows-latest  # 使用 Windows 环境
+
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 确保可以获取所有标签
+
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
@@ -74,8 +89,14 @@ jobs:
           cd build/windows/runner/Release
           tar -a -c -f DigitalScale-Windows.zip DigitalScale.exe
 
+      - name: Get tag name
+        id: get_tag_name
+        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
       - name: Publish to GitHub Releases
+        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: build/windows/runner/Release/DigitalScale-Windows.zip
+          tag_name: ${{ env.TAG_NAME }}
           token: ${{ secrets.GITHUB_TOKEN }}
