@@ -332,7 +332,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
             unit = 'OT';
           }
 
-          weightDisplay = "${weight.toStringAsFixed(2)} $unit";
+          weightDisplay = "${weight.toStringAsFixed(3)} $unit";
           _speakWeightWithUnit(weight, unit);
         });
       }
