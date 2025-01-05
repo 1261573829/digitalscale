@@ -66,28 +66,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
 
-      - name: Install dependencies using choco
-        run: |
-          choco install cmake --version=3.14
-          choco install visualstudio2019-workload-vctools
-
-      - name: Build Windows application
-        run: |
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_FLAGS="/std:c++20"
-
-      - name: Compile the project
-        run: |
-          cmake --build build --config Release
-
       - name: Build Windows app
         run: flutter build windows --release  # 构建 Windows 应用
 
       - name: Archive Windows build
         run: |
           cd build/windows/runner/Release
-          tar -a -c -f DigitalScale-Windows.zip DigitalScale.exe
+          7z a DigitalScale-Windows.zip ./*  # 使用 7z 替代 tar 命令，打包所有必要文件
 
       - name: Get tag name
         id: get_tag_name
