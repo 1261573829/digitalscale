@@ -1,4 +1,4 @@
-name: Build macOS and Windows Apps
+name: Build and Release macOS and Windows Apps
 
 on:
   push:
@@ -29,6 +29,17 @@ jobs:
       - name: Build macOS app
         run: flutter build macos --release  # 构建 macOS 应用
 
+      - name: Archive macOS build
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r DigitalScale-macOS.zip DigitalScale.app
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/macos/Build/Products/Release/DigitalScale-macOS.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build-windows:
     runs-on: windows-latest  # 使用 Windows 环境
     steps:
@@ -57,3 +68,14 @@ jobs:
 
       - name: Build Windows app
         run: flutter build windows --release  # 构建 Windows 应用
+
+      - name: Archive Windows build
+        run: |
+          cd build/windows/runner/Release
+          tar -a -c -f DigitalScale-Windows.zip DigitalScale.exe
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/windows/runner/Release/DigitalScale-Windows.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
