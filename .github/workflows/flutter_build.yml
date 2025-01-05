@@ -47,9 +47,9 @@ jobs:
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         id: get_tag_name
         run: |
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          echo "Using tag: ${GITHUB_REF#refs/tags/}"
-        shell: bash
+          echo "TAG_NAME=$env:GITHUB_REF.Replace('refs/tags/', '')" >> $env:GITHUB_ENV
+          echo "Using tag: $env:GITHUB_REF"
+        shell: pwsh
 
       - name: Publish to GitHub Releases
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
