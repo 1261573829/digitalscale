@@ -75,8 +75,8 @@ jobs:
           name: "Release ${{ github.ref_name }}"
           tag_name: ${{ github.ref_name }}
           body: "Windows build for ${{ github.ref_name }}"
-          draft: false
-          prerelease: false
+          draft: true
+          prerelease: true
 
       - name: Print release result (always)
         if: always()
