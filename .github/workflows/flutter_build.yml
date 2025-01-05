@@ -45,11 +45,15 @@ jobs:
           choco install cmake --version=3.21.2
           choco install visualstudio2019-workload-vctools
 
-      - name: Set up CMake options
+      - name: Build Windows application
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_FLAGS="/std:c++20"  # 强制使用 C++20
+          cmake .. -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_FLAGS="/std:c++20"  # 确保路径正确
+
+      - name: Compile the project
+        run: |
+          cmake --build build --config Release
 
       - name: Build Windows app
         run: flutter build windows --release  # 构建 Windows 应用
