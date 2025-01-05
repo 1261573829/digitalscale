@@ -7,8 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  create:
-    types: [created]
 
 jobs:
   build-windows:
@@ -42,15 +40,6 @@ jobs:
         run: |
           cd build\windows\x64\runner\Release
           7z a DigitalScale-Windows.zip *
-
-      - name: Get tag name
-        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
-        id: get_tag_name
-        run: |
-          echo "TAG_NAME=$env:GITHUB_REF.Replace('refs/tags/', '')" >> $env:GITHUB_ENV
-          echo "Using tag: $env:GITHUB_REF"
-        shell: pwsh
-
       - name: Publish to GitHub Releases
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
@@ -58,6 +47,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/windows/x64/runner/Release/DigitalScale-Windows.zip
-          tag_name: ${{ env.TAG_NAME }}
+          tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
