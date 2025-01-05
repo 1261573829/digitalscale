@@ -9,26 +9,23 @@ on:
       - main   # 对主分支的 PR 进行构建
 
 jobs:
- #build-macos:
- #  runs-on: macos-latest  # 使用 macOS 环境
+  build-macos:
+    runs-on: macos-latest  # 使用 macOS 环境
 
- #  steps:
- #    - name: Checkout repository
- #      uses: actions/checkout@v2
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
- #    - name: Install automake and libtool
- #      run: brew install automake libtool
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.3'  # 使用你的 Flutter 版本
 
- #    - name: Set up Flutter
- #      uses: subosito/flutter-action@v2
- #      with:
- #        flutter-version: '3.24.3'  # 使用你的 Flutter 版本
+      - name: Install dependencies
+        run: flutter pub get  # 安装项目依赖
 
- #    - name: Install dependencies
- #      run: flutter pub get  # 安装项目依赖
-
- #    - name: Build macOS app
- #      run: flutter build macos --release  # 构建 macOS 应用
+      - name: Build macOS app
+        run: flutter build macos --release  # 构建 macOS 应用
 
   build-windows:
     runs-on: windows-latest  # 使用 Windows 环境
@@ -44,11 +41,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
-
-      - name: Set up Visual Studio
-        uses: actions/setup-msbuild@v1
-        with:
-          vs-version: 'latest'  # 或指定合适的版本
 
       - name: Build Windows app
         run: flutter build windows --release  # 构建 Windows 应用
