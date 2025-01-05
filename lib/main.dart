@@ -556,7 +556,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                               child: OutlinedButton.icon(
                                 onPressed: () => _sendCommand('T'),
                                 icon: Icon(Icons.restart_alt, size: 20),
-                                label: Text('去皮'),
+                                label: Text('设置去皮范围'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                   side: BorderSide(color: Colors.blue[700]!),
@@ -569,7 +569,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                                 onPressed: () => _sendCommand('Z'),
                                 icon:
                                     Icon(Icons.remove_circle_outline, size: 20),
-                                label: Text('零点'),
+                                label: Text('调整为归零'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                   side: BorderSide(color: Colors.blue[700]!),
@@ -581,7 +581,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                               child: OutlinedButton.icon(
                                 onPressed: () => _sendCommand('TT'),
                                 icon: Icon(Icons.settings_outlined, size: 20),
-                                label: Text('去皮范围'),
+                                label: Text('定重范围'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                   side: BorderSide(color: Colors.blue[700]!),
