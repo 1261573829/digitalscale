@@ -40,16 +40,22 @@ jobs:
           zip -r DigitalScale-macOS.zip DigitalScale.app
 
       - name: Get tag name
+        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         id: get_tag_name
-        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+        run: |
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "Using tag: ${GITHUB_REF#refs/tags/}"
 
       - name: Publish to GitHub Releases
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/macos/Build/Products/Release/DigitalScale-macOS.zip
           tag_name: ${{ env.TAG_NAME }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
 
   build-windows:
     runs-on: windows-latest  # 使用 Windows 环境
@@ -69,10 +75,24 @@ jobs:
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
 
+      - name: Clean build directory
+        run: |
+          if exist build rd /s /q build
+        shell: cmd
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="/std:c++20 /await /EHsc"
+        working-directory: windows
+
       - name: Build Windows app
         env:
-          CXXFLAGS: "/std:c++20"
-        run: flutter build windows --release  # 构建 Windows 应用
+          CXXFLAGS: "/std:c++20 /await /EHsc"
+        run: |
+          flutter config --enable-windows-desktop
+          flutter build windows --release
 
       - name: Archive Windows build
         run: |
@@ -80,13 +100,20 @@ jobs:
           7z a DigitalScale-Windows.zip ./*  # 使用 7z 替代 tar 命令，打包所有必要文件
 
       - name: Get tag name
+        if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         id: get_tag_name
-        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+        run: |
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "Using tag: ${GITHUB_REF#refs/tags/}"
+        shell: bash
 
       - name: Publish to GitHub Releases
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: build/windows/runner/Release/DigitalScale-Windows.zip
           tag_name: ${{ env.TAG_NAME }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
