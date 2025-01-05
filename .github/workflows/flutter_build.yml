@@ -38,11 +38,6 @@ jobs:
           flutter clean
           flutter build windows --release --verbose
 
-      - name: Archive Windows build
-        run: |
-          cd build/windows/runner/Release
-          7z a DigitalScale-Windows.zip ./*
-
       - name: Get tag name
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
         id: get_tag_name
