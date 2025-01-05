@@ -63,10 +63,15 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Setup Visual Studio
+        uses: microsoft/setup-msbuild@v1.1
+
       - name: Install dependencies
         run: flutter pub get  # 安装项目依赖
 
       - name: Build Windows app
+        env:
+          CXXFLAGS: "/std:c++20"
         run: flutter build windows --release  # 构建 Windows 应用
 
       - name: Archive Windows build
