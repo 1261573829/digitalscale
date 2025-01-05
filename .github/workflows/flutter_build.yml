@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+  create:  # 监听标签创建事件
+    types: [created]
 
 jobs:
   build-windows:
@@ -35,13 +37,28 @@ jobs:
           flutter config --enable-windows-desktop
           flutter clean
           flutter build windows --release --verbose
+
       - name: Archive Windows build
         run: |
           cd build\windows\x64\runner\Release
           7z a DigitalScale-Windows.zip *
+
+      - name: Check if build file exists
+        run: |
+          if (-not (Test-Path "build\windows\x64\runner\Release\DigitalScale-Windows.zip")) {
+            Write-Host "Error: Build file not found!"
+            exit 1
+          }
+
+      - name: Print environment variables
+        run: |
+          echo "GITHUB_REF_NAME: ${{ github.ref_name }}"
+          echo "GITHUB_REF: ${{ github.ref }}"
+          echo "GITHUB_EVENT_NAME: ${{ github.event_name }}"
+
       - name: Publish to GitHub Releases
         if: github.event_name == 'create' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v1.1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -49,3 +66,8 @@ jobs:
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
+
+      - name: Print release result (always)
+        if: always()
+        run: |
+          echo "Release step completed."
