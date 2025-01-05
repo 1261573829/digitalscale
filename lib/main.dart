@@ -269,18 +269,18 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     switch (command) {
       case 'T':
         formattedCommand = 'T \r\n'; // 去皮命令
-        speakText = '归零'; // 修正：T命令实际是归零
+        speakText = '设置去皮范围'; // 修正：T命令实际是归零
         break;
       case 'Z':
         formattedCommand = 'Z \r\n'; // 归零命令
-        speakText = '去皮'; // 修正：Z命令实际是去皮
+        speakText = '调整为归零'; // 修正：Z命令实际是去皮
         break;
       case 'O8':
         formattedCommand = 'O8\r\n'; // 单次输出数据命令
         break;
       case 'TT':
         formattedCommand = 'TT\r\n'; // 去皮范围命令
-        speakText = '设置去皮范围';
+        speakText = '定重范围';
         break;
       default:
         formattedCommand = command + '\r\n';
@@ -555,7 +555,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: () => _sendCommand('T'),
-                                icon: Icon(Icons.restart_alt, size: 20),
+                                icon: Icon(Icons.scale_outlined, size: 20),
                                 label: Text('设置去皮范围'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -567,8 +567,8 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: () => _sendCommand('Z'),
-                                icon:
-                                    Icon(Icons.remove_circle_outline, size: 20),
+                                icon: Icon(Icons.exposure_zero_outlined,
+                                    size: 20),
                                 label: Text('调整为归零'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -580,7 +580,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: () => _sendCommand('TT'),
-                                icon: Icon(Icons.settings_outlined, size: 20),
+                                icon: Icon(Icons.balance_outlined, size: 20),
                                 label: Text('定重范围'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -629,7 +629,8 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                                   ),
                                   labelText: '选择SHINKO天平秤',
                                   hintText: '请选择SHINKO天平秤串口',
-                                  prefixIcon: Icon(Icons.scale),
+                                  prefixIcon:
+                                      Icon(Icons.monitor_weight_outlined),
                                   contentPadding: EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 16),
                                 ),
@@ -661,7 +662,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                             Expanded(
                               child: ElevatedButton.icon(
                                 onPressed: port == null ? _connectToPort : null,
-                                icon: Icon(Icons.link, size: 20),
+                                icon: Icon(Icons.usb_outlined, size: 20),
                                 label: Text('连接'),
                                 style: ElevatedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -678,7 +679,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
                               child: OutlinedButton.icon(
                                 onPressed:
                                     port != null ? _disconnectPort : null,
-                                icon: Icon(Icons.link_off, size: 20),
+                                icon: Icon(Icons.usb_off_outlined, size: 20),
                                 label: Text('断开'),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
