@@ -1,4 +1,4 @@
-name: Build and Release Windows App
+name: Build and Release Apps
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -59,4 +60,57 @@ jobs:
         with:
           name: windows-build
           path: build/windows/x64/runner/Release/DigitalScale-Windows.zip
+          retention-days: 90  # 保留90天
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Print initial git info
+        run: |
+          git tag
+          echo "Current ref: ${{ github.ref }}"
+          echo "Event name: ${{ github.event_name }}"
+        shell: bash
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies with Homebrew
+        run: |
+          brew install automake
+          brew install libtool
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: |
+          flutter config --enable-macos-desktop
+          flutter clean
+          flutter build macos --release
+
+      - name: Archive macOS build
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r DigitalScale-macOS.zip DigitalScale.app
+
+      - name: Check if build file exists
+        run: |
+          if [ ! -f "build/macos/Build/Products/Release/DigitalScale-macOS.zip" ]; then
+            echo "Error: Build file not found!"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-build
+          path: build/macos/Build/Products/Release/DigitalScale-macOS.zip
           retention-days: 90  # 保留90天
