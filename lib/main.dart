@@ -419,31 +419,7 @@ class _SerialPortExampleState extends State<SerialPortExample> {
     // 获取所有可用端口
     final allPorts = SerialPort.availablePorts;
     // 过滤出 FT232R 设备
-    return allPorts.where((port) {
-      try {
-        final serialPort = SerialPort(port);
-        final description = serialPort.description;
-        final manufacturer = serialPort.manufacturer;
-        final productName = serialPort.productName;
-
-        // 关闭端口
-        serialPort.close();
-
-        // 打印设备信息用于调试
-        print('检查端口 $port:');
-        print('- 描述: $description');
-        print('- 制造商: $manufacturer');
-        print('- 产品名: $productName');
-
-        // 检查是否为 FT232R 设备
-        return (description?.toLowerCase().contains('usb') ?? false) ||
-            (manufacturer?.toLowerCase().contains('usb') ?? false) ||
-            (productName?.toLowerCase().contains('usb') ?? false);
-      } catch (e) {
-        print('检查端口 $port 时出错: $e');
-        return false;
-      }
-    }).toList();
+    return allPorts.toList();
   }
 
   @override
