@@ -6,6 +6,7 @@ import 'package:flutter_libserialport/flutter_libserialport.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,17 +14,29 @@ void main() async {
   await windowManager.ensureInitialized();
 
   // 配置窗口
-  WindowOptions windowOptions = WindowOptions(
-    size: Size(800, 600),
-    center: true,
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(500, 500),
+    minimumSize: Size(300, 300),
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.hidden,
+    alwaysOnTop: true,
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
+
+    try {
+      // 获取主屏幕信息
+      final screen = await screenRetriever.getPrimaryDisplay();
+      await windowManager.setPosition(Offset(
+        screen.size.width - 501,
+        5,
+      ));
+    } catch (e) {
+      print('设置窗口位置失败: $e');
+    }
   });
 
   runApp(MyApp());
@@ -460,13 +473,13 @@ class _SerialPortExampleState extends State<SerialPortExample> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('SHINKO 电子天平秤'),
+        toolbarHeight: 45,
+        title: Text('SHINKO 电子天平秤', style: TextStyle(fontSize: 16)),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.blue[700],
         actions: [
-          // 添加语音开关按钮
           IconButton(
             icon: Icon(_isSpeakEnabled ? Icons.volume_up : Icons.volume_off),
             onPressed: _toggleSpeak,
@@ -474,230 +487,227 @@ class _SerialPortExampleState extends State<SerialPortExample> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // 重量显示区域
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(vertical: 32),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              border: Border(
-                bottom: BorderSide(color: Colors.grey[200]!),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Column(
+          children: [
+            // 重量显示区域
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[200]!),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () {
+                          if (weightDisplay.isNotEmpty) {
+                            Clipboard.setData(
+                                    ClipboardData(text: weightDisplay))
+                                .then((_) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('已复制: $weightDisplay'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                              // 添加复制成功的语音播报
+                              if (_isSpeakEnabled) {
+                                flutterTts.speak('复制成功');
+                              }
+                            });
+                          }
+                        },
+                        icon: Icon(Icons.copy, size: 18),
+                        label: Text('复制'),
+                      ),
+                      SizedBox(width: 24),
+                    ],
+                  ),
+                  Text(
+                    weightDisplay.isEmpty ? '未连接' : weightDisplay,
+                    style: TextStyle(
+                      fontSize: 60,
+                      fontFamily: 'Monospace',
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      onPressed: () {
-                        if (weightDisplay.isNotEmpty) {
-                          Clipboard.setData(ClipboardData(text: weightDisplay))
-                              .then((_) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('已复制: $weightDisplay'),
-                                duration: Duration(seconds: 1),
+            // 控制区域
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 操作按钮区域
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '操作控制',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _sendCommand('T'),
+                              icon: Icon(Icons.scale_outlined, size: 20),
+                              label: Text('设置去皮范围'),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(color: Colors.blue[700]!),
                               ),
-                            );
-                            // 添加复制成功的语音播报
-                            if (_isSpeakEnabled) {
-                              flutterTts.speak('复制成功');
-                            }
-                          });
-                        }
-                      },
-                      icon: Icon(Icons.copy, size: 18),
-                      label: Text('复制'),
-                    ),
-                    SizedBox(width: 24),
-                  ],
-                ),
-                Text(
-                  weightDisplay.isEmpty ? '未连接' : weightDisplay,
-                  style: TextStyle(
-                    fontSize: 72,
-                    fontFamily: 'Monospace',
-                    fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _sendCommand('Z'),
+                              icon:
+                                  Icon(Icons.exposure_zero_outlined, size: 20),
+                              label: Text('调整为归零'),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(color: Colors.blue[700]!),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _sendCommand('TT'),
+                              icon: Icon(Icons.balance_outlined, size: 20),
+                              label: Text('定重范围'),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(color: Colors.blue[700]!),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          // 其他控制部分使用 Padding 包裹
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // 操作按钮区域
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '操作控制',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
+                  SizedBox(height: 24),
+                  // 连接设置区域
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '设备连接',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[700],
                         ),
-                        SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _sendCommand('T'),
-                                icon: Icon(Icons.scale_outlined, size: 20),
-                                label: Text('设置去皮范围'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(color: Colors.blue[700]!),
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _selectedPort,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _sendCommand('Z'),
-                                icon: Icon(Icons.exposure_zero_outlined,
-                                    size: 20),
-                                label: Text('调整为归零'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(color: Colors.blue[700]!),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey[300]!),
                                 ),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => _sendCommand('TT'),
-                                icon: Icon(Icons.balance_outlined, size: 20),
-                                label: Text('定重范围'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(color: Colors.blue[700]!),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: Colors.blue[700]!),
                                 ),
+                                labelText: '选择SHINKO天平秤',
+                                hintText: '请选择SHINKO天平秤串口',
+                                prefixIcon: Icon(Icons.monitor_weight_outlined),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 32),
-                    // 连接设置区域
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '设备连接',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedPort,
-                                decoration: InputDecoration(
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey[300]!),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey[300]!),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide:
-                                        BorderSide(color: Colors.blue[700]!),
-                                  ),
-                                  labelText: '选择SHINKO天平秤',
-                                  hintText: '请选择SHINKO天平秤串口',
-                                  prefixIcon:
-                                      Icon(Icons.monitor_weight_outlined),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 16),
-                                ),
-                                items: _availablePorts.map((port) {
-                                  return DropdownMenuItem(
-                                    value: port,
-                                    child: Text('SHINKO天平秤 ($port)'),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedPort = value;
-                                  });
-                                },
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.refresh),
-                              onPressed: () {
-                                // 调用刷新设备列表的方法
-                                _refreshDevices();
+                              items: _availablePorts.map((port) {
+                                return DropdownMenuItem(
+                                  value: port,
+                                  child: Text('SHINKO天平秤 ($port)'),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedPort = value;
+                                });
                               },
                             ),
-                          ],
-                        ),
-                        SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: port == null ? _connectToPort : null,
-                                icon: Icon(Icons.usb_outlined, size: 20),
-                                label: Text('连接'),
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  backgroundColor: Colors.blue[700],
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh),
+                            onPressed: () {
+                              // 调用刷新设备列表的方法
+                              _refreshDevices();
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: port == null ? _connectToPort : null,
+                              icon: Icon(Icons.usb_outlined, size: 20),
+                              label: Text('连接'),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                backgroundColor: Colors.blue[700],
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
                             ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed:
-                                    port != null ? _disconnectPort : null,
-                                icon: Icon(Icons.usb_off_outlined, size: 20),
-                                label: Text('断开'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(color: Colors.red),
-                                  foregroundColor: Colors.red,
-                                ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: port != null ? _disconnectPort : null,
+                              icon: Icon(Icons.usb_off_outlined, size: 20),
+                              label: Text('断开'),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(color: Colors.red),
+                                foregroundColor: Colors.red,
                               ),
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
